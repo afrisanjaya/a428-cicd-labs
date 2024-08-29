@@ -1,0 +1,54 @@
+version: '3'
+
+services:
+  jenkins:
+    build:
+      context: ./jenkinsDocker
+    container_name: jenkins-blueocean
+    environment:
+      DOCKER_HOST: tcp://docker:2376
+      DOCKER_CERT_PATH: /certs/client
+      DOCKER_TLS_VERIFY: 1
+      JAVA_OPTS: "-Dhudson.plugins.git.GitSCM.ALLOW_LOCAL_CHECKOUT=true"
+    ports:
+      - "49000:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins-data:/var/jenkins_home
+      - jenkins-docker-certs:/certs/client:ro
+    restart: on-failure
+    networks:
+      - jenkins
+
+  docker:
+    image: docker:dind
+    container_name: jenkins-docker
+    privileged: true
+    environment:
+      DOCKER_TLS_CERTDIR: /certs
+    volumes:
+      - jenkins-docker-certs:/certs/client
+    ports:
+      - "2376:2376"
+    restart: always
+    networks:
+      - jenkins
+
+  nginx:
+    build:
+      context: ./nginx
+    container_name: nginx-reverse-proxy
+    ports:
+      - "9000:9000"
+    depends_on:
+      - jenkins
+    networks:
+      - jenkins
+
+volumes:
+  jenkins-data:
+  jenkins-docker-certs:
+
+networks:
+  jenkins:
+    driver: bridge
